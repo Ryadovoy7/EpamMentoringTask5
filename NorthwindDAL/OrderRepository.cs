@@ -27,7 +27,9 @@ namespace NorthwindDAL
 
                 using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "SELECT * FROM Northwind.Orders";
+                    cmd.CommandText = "SELECT OrderID, CustomerID, EmployeeID, OrderDate, RequiredDate, ShippedDate, ShipVia, " +
+                        "Freight, ShipName, ShipAddress, ShipCity, ShipRegion, ShipPostalCode, ShipCountry " +
+                        "FROM Northwind.Orders";
                     cmd.CommandType = CommandType.Text;
                     using (var dataReader = cmd.ExecuteReader())
                     {
@@ -95,31 +97,23 @@ namespace NorthwindDAL
 
         private Order ReadOrder(DbDataReader dataReader)
         {
-            var order = new Order()
-            {
+            var order = new Order(
                 // для получения nullable значений можно использовать IsDBNull + Get(...)
-                OrderID = dataReader.GetInt32(0),
-                CustomerID = Convert.IsDBNull(dataReader.GetValue(1)) ? null : dataReader.GetString(1),
-                EmployeeID = Convert.IsDBNull(dataReader.GetValue(2)) ? null : dataReader.GetInt32(2),
-                OrderDate = Convert.IsDBNull(dataReader.GetValue(3)) ? null : dataReader.GetDateTime(3),
-                RequiredDate = Convert.IsDBNull(dataReader.GetValue(4)) ? null : dataReader.GetDateTime(4),
-                ShippedDate = Convert.IsDBNull(dataReader.GetValue(5)) ? null : dataReader.GetDateTime(5),
-                ShipVia = Convert.IsDBNull(dataReader.GetValue(6)) ? null : dataReader.GetInt32(6),
-                Freight = Convert.IsDBNull(dataReader.GetValue(7)) ? null : dataReader.GetDecimal(7),
-                ShipName = Convert.IsDBNull(dataReader.GetValue(8)) ? null : dataReader.GetString(8),
-                ShipAddress = Convert.IsDBNull(dataReader.GetValue(9)) ? null : dataReader.GetString(9),
-                ShipCity = Convert.IsDBNull(dataReader.GetValue(10)) ? null : dataReader.GetString(10),
-                ShipRegion = Convert.IsDBNull(dataReader.GetValue(11)) ? null : dataReader.GetString(11),
-                ShipPostalCode = Convert.IsDBNull(dataReader.GetValue(12)) ? null : dataReader.GetString(12),
-                ShipCountry = Convert.IsDBNull(dataReader.GetValue(13)) ? null : dataReader.GetString(13)
-            };
-
-            if (order.ShippedDate != null)
-                order.State = OrderState.Completed;
-            else if (order.OrderDate != null)
-                order.State = OrderState.InProgress;
-            else
-                order.State = OrderState.New;
+                dataReader.GetInt32("OrderID"),
+                Convert.IsDBNull(dataReader.GetValue("CustomerID")) ? null : dataReader.GetString("CustomerID"),
+                Convert.IsDBNull(dataReader.GetValue("EmployeeID")) ? null : dataReader.GetInt32("EmployeeID"),
+                Convert.IsDBNull(dataReader.GetValue("OrderDate")) ? null : dataReader.GetDateTime("OrderDate"),
+                Convert.IsDBNull(dataReader.GetValue("RequiredDate")) ? null : dataReader.GetDateTime("RequiredDate"),
+                Convert.IsDBNull(dataReader.GetValue("ShippedDate")) ? null : dataReader.GetDateTime("ShippedDate"),
+                Convert.IsDBNull(dataReader.GetValue("ShipVia")) ? null : dataReader.GetInt32("ShipVia"),
+                Convert.IsDBNull(dataReader.GetValue("Freight")) ? null : dataReader.GetDecimal("Freight"),
+                Convert.IsDBNull(dataReader.GetValue("ShipName")) ? null : dataReader.GetString("ShipName"),
+                Convert.IsDBNull(dataReader.GetValue("ShipAddress")) ? null : dataReader.GetString("ShipAddress"),
+                Convert.IsDBNull(dataReader.GetValue("ShipCity")) ? null : dataReader.GetString("ShipCity"),
+                Convert.IsDBNull(dataReader.GetValue("ShipRegion")) ? null : dataReader.GetString("ShipRegion"),
+                Convert.IsDBNull(dataReader.GetValue("ShipPostalCode")) ? null : dataReader.GetString("ShipPostalCode"),
+                Convert.IsDBNull(dataReader.GetValue("ShipCountry")) ? null : dataReader.GetString("ShipCountry")
+            );
 
             return order;
         }
@@ -128,12 +122,12 @@ namespace NorthwindDAL
         {
             var detail = new OrderDetail()
             {
-                OrderID = dataReader.GetInt32(0),
-                ProductID = dataReader.GetInt32(1),
-                UnitPrice = dataReader.GetDecimal(2),
-                Quantity = dataReader.GetInt16(3),
-                Discount = dataReader.GetFloat(4),
-                ProductName = dataReader.GetString(5)
+                OrderID = dataReader.GetInt32("OrderID"),
+                ProductID = dataReader.GetInt32("ProductID"),
+                UnitPrice = dataReader.GetDecimal("UnitPrice"),
+                Quantity = dataReader.GetInt16("Quantity"),
+                Discount = dataReader.GetFloat("Discount"),
+                ProductName = dataReader.GetString("ProductName")
             };
             return detail;
         }
@@ -169,6 +163,11 @@ namespace NorthwindDAL
                     cmd.Parameters.AddWithValue("@ShipPostalCode", newOrder.ShipPostalCode);
                     cmd.Parameters.AddWithValue("@ShipCountry", newOrder.ShipCountry);
 
+                    foreach (SqlParameter param in cmd.Parameters)
+                    {
+                        if (param.Value == null)
+                            param.Value = DBNull.Value;
+                    }
                     result = (int)cmd.ExecuteScalar();
                 }
             }
@@ -178,10 +177,6 @@ namespace NorthwindDAL
 
         public Order Update(Order updatedOrder)
         {
-            var originalOrder = GetOrderByID(updatedOrder.OrderID);
-            if (HasUnchangeableFields(updatedOrder, originalOrder)) // todo перенести в ордер
-                return null; // todo кидать исключение! кастом CustomValidationException
-
             int result;
             using (var conn = (SqlConnection)_dbProviderFactory.CreateConnection())
             {
@@ -205,7 +200,6 @@ namespace NorthwindDAL
                         "WHERE OrderID = @OrderID";
                     cmd.CommandType = CommandType.Text;
 
-
                     cmd.Parameters.AddWithValue("@OrderID", updatedOrder.OrderID);
                     cmd.Parameters.AddWithValue("@CustomerID", updatedOrder.CustomerID);
                     cmd.Parameters.AddWithValue("@EmployeeID", updatedOrder.EmployeeID);
@@ -219,6 +213,12 @@ namespace NorthwindDAL
                     cmd.Parameters.AddWithValue("@ShipPostalCode", updatedOrder.ShipPostalCode);
                     cmd.Parameters.AddWithValue("@ShipCountry", updatedOrder.ShipCountry);
 
+                    foreach (SqlParameter param in cmd.Parameters)
+                    {
+                        if (param.Value == null)
+                            param.Value = DBNull.Value;
+                    }
+
                     result = cmd.ExecuteNonQuery();
                 }
             }
@@ -231,23 +231,11 @@ namespace NorthwindDAL
                 return null;
         }
 
-        private bool HasUnchangeableFields(Order updated, Order original) // todo через ордер
-        {
-            if (original.State != OrderState.New)
-                return true;
-
-            if (updated.OrderDate != original.OrderDate
-                || updated.ShippedDate != original.ShippedDate)
-                return true;
-
-            return false;
-        }
-
         public bool Delete(int id)
         {
             var order = GetOrderByID(id);
             if (order != null &&
-                (order.State != OrderState.New || order.State != OrderState.InProgress))
+                (order.State != OrderState.New && order.State != OrderState.InProgress))
                 return false;
 
             int result;
@@ -258,7 +246,7 @@ namespace NorthwindDAL
 
                 using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "DELETE FROM Northwind.Orders" +
+                    cmd.CommandText = "DELETE FROM Northwind.Orders " +
                         "WHERE OrderID = @OrderID";
                     cmd.CommandType = CommandType.Text;
 
@@ -286,7 +274,7 @@ namespace NorthwindDAL
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = "UPDATE Northwind.Orders SET " +
-                        "OrderDate = @OrderDate, " +
+                        "OrderDate = @OrderDate " +
                         "WHERE OrderID = @OrderID";
                     cmd.CommandType = CommandType.Text;
 
@@ -315,7 +303,7 @@ namespace NorthwindDAL
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = "UPDATE Northwind.Orders SET " +
-                        "ShippedDate = @ShippedDate, " +
+                        "ShippedDate = @ShippedDate " +
                         "WHERE OrderID = @OrderID";
                     cmd.CommandType = CommandType.Text;
 
@@ -354,8 +342,8 @@ namespace NorthwindDAL
                         {
                             var row = new CustOrderHist()
                             {
-                                ProductName = (string)dataReader[0],
-                                Total = (int)dataReader[1]
+                                ProductName = (string)dataReader["ProductName"],
+                                Total = (int)dataReader["Total"]
                             };
                             statistics.Add(row);
                         }
@@ -391,11 +379,11 @@ namespace NorthwindDAL
                         {
                             var row = new CustOrdersDetail()
                             {
-                                ProductName = (string)dataReader[0],
-                                UnitPrice = (decimal)dataReader[1],
-                                Quantity = (short)dataReader[2],
-                                Discount = (int)dataReader[3],
-                                ExtendedPrice = (decimal)dataReader[4]
+                                ProductName = (string)dataReader["ProductName"],
+                                UnitPrice = (decimal)dataReader["UnitPrice"],
+                                Quantity = (short)dataReader["Quantity"],
+                                Discount = (int)dataReader["Discount"],
+                                ExtendedPrice = (decimal)dataReader["ExtendedPrice"]
                             };
                             statistics.Add(row);
                         }

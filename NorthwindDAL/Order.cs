@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Common;
 
 namespace NorthwindDAL
 {
@@ -12,39 +13,101 @@ namespace NorthwindDAL
 
     public class Order
     {
-        public int OrderID { get; set; }
+        private string _customerID;
+        private int? _employeeID;
+        private DateTime? _requiredDate;
+        private int? _shipVia;
+        private decimal? _freight;
+        private string _shipName;
+        private string _shipAddress;
+        private string _shipCity;
+        private string _shipRegion;
+        private string _shipPostalCode;
+        private string _shipCountry;
 
-#nullable enable
-        public string? CustomerID { get; set; }
+        public int OrderID { get; }
 
-        public int? EmployeeID { get; set; }
+        public string CustomerID { get => _customerID; set => _customerID = ValidatePropertyValue(value); }
 
-        public DateTime? OrderDate { get; set; }
+        public int? EmployeeID { get => _employeeID; set => _employeeID = ValidatePropertyValue(value); }
 
-        public DateTime? RequiredDate { get; set; } 
+        public DateTime? OrderDate { get; }
 
-        public DateTime? ShippedDate { get; set; }
+        public DateTime? RequiredDate { get => _requiredDate; set => _requiredDate = ValidatePropertyValue(value); }
 
-        public int? ShipVia { get; set; }
+        public DateTime? ShippedDate { get; }
 
-        public decimal? Freight { get; set; }
+        public int? ShipVia { get => _shipVia; set => _shipVia = ValidatePropertyValue(value); }
 
-        public string? ShipName { get; set; }
+        public decimal? Freight { get => _freight; set => _freight = ValidatePropertyValue(value); }
 
-        public string? ShipAddress { get; set; }
+        public string ShipName { get => _shipName; set => _shipName = ValidatePropertyValue(value); }
 
-        public string? ShipCity { get; set; }
+        public string ShipAddress { get => _shipAddress; set => _shipAddress = ValidatePropertyValue(value); }
 
-        public string? ShipRegion { get; set; }
+        public string ShipCity { get => _shipCity; set => _shipCity = ValidatePropertyValue(value); }
 
-        public string? ShipPostalCode { get; set; }
+        public string ShipRegion { get => _shipRegion; set => _shipRegion = ValidatePropertyValue(value); }
 
-        public string? ShipCountry { get; set; }
-#nullable disable
-        public OrderState State { get; set; } 
+        public string ShipPostalCode { get => _shipPostalCode; set => _shipPostalCode = ValidatePropertyValue(value); }
+
+        public string ShipCountry { get => _shipCountry; set => _shipCountry = ValidatePropertyValue(value); }
+
+        public OrderState State { 
+            get 
+            {
+                if (ShippedDate != null)
+                    return OrderState.Completed;
+                else if (OrderDate != null)
+                    return OrderState.InProgress;
+                else
+                    return OrderState.New;
+            }
+        }
 
         public List<OrderDetail> Details { get; set; }
 
-        // todo сделать на уровне свойства неизменяемые поля
+        public Order()
+        { }
+
+        public Order(
+            int orderID,
+            string customerID,
+            int? employeeID,
+            DateTime? orderDate,
+            DateTime? requiredDate,
+            DateTime? shippedDate,
+            int? shipVia,
+            decimal? freight,
+            string shipName,
+            string shipAddress,
+            string shipCity,
+            string shipRegion,
+            string shipPostalCode,
+            string shipCountry)
+        {
+            OrderID = orderID;
+            _customerID = customerID;
+            _employeeID = employeeID;   
+            OrderDate = orderDate;
+            _requiredDate = requiredDate;
+            ShippedDate = shippedDate;
+            _shipVia = shipVia;
+            _freight = freight;
+            _shipName = shipName;
+            _shipAddress = shipAddress;
+            _shipCity = shipCity;
+            _shipRegion = shipRegion;
+            _shipPostalCode = shipPostalCode;
+            _shipCountry = shipCountry;
+        }
+
+        private T ValidatePropertyValue<T>(T value)
+        {
+            if (State == OrderState.New)
+                return value;
+            else
+                throw new InvalidOrderStateException("Order state must be new to change this property!");
+        }
     }
 }
